@@ -1,17 +1,21 @@
 <template>
   <div id="quiz-page">
     <div v-if="gameStarted">
-      <img :src="flagUrl" alt="Drapeau" style="max-width: 200px;">
+      <p>Question {{ questionNumber }} / {{ totalQuestions }}</p>
+      <p><button @click="restartGame">Recommencer</button></p>
+      <img :src="flagUrl" alt="Drapeau" style="max-width: 300px;">
       <p>{{ countryName }}</p>
       <a :href="mapLink" target="_blank">Voir sur Google Maps</a> <!-- Lien vers Google Maps -->
       <p>{{ question }}</p>
-      <input type="text" v-model="userGuess" @keyup.enter="checkAnswer">
-      <button @click="checkAnswer">Valider</button>
+      <input type="text" v-model="userGuess" @keyup.enter="checkAnswer" :disabled="isAnswered">
+      <button @click="checkAnswer" :disabled="isAnswered">Valider</button>
+      <button @click="skipQuestion" :disabled="isAnswered">Skip</button>
       <p :class="{ 'correct-answer': feedback === 'Correct!', 'incorrect-answer': feedback !== 'Correct!' }">{{ feedback }}</p>
-      <button @click="nextQuestion">Question suivante</button>
+      <p v-if="showCorrectAnswer">La réponse correcte est : {{ capital }}</p>
       <p>Score: {{ score }}</p>
-    </div>
+      <button v-if="showNextQuestionButton" @click="nextQuestion">Question suivante</button>
 
+    </div>
   </div>
 </template>
 
@@ -28,7 +32,12 @@ export default {
       userGuess: '',
       feedback: '',
       score: 0,
-      question: "Quelle est la capitale de ce pays ?"
+      question: "Quelle est la capitale de ce pays ?",
+      showCorrectAnswer: false,
+      showNextQuestionButton: false,
+      isAnswered: false,
+      questionNumber: 0,
+      totalQuestions: 20 // Nombre total de questions par partie
     }
   },
   mounted() {
@@ -36,31 +45,37 @@ export default {
   },
   methods: {
     startGame() {
-      this.gameStarting = true; // Indiquer que le jeu est en cours de démarrage
-      // Effectuer les opérations nécessaires pour démarrer le jeu, comme fetchCountries()
+      this.gameStarting = true;
       fetch('https://restcountries.com/v3.1/all')
           .then(response => response.json())
           .then(data => {
             this.countries = data;
             this.nextQuestion();
-            this.gameStarted = true; // Indiquer que le jeu a démarré
-            this.gameStarting = false; // Réinitialiser l'état de démarrage du jeu
+            this.gameStarted = true;
+            this.gameStarting = false;
           })
           .catch(error => {
             console.error('Une erreur est survenue lors de la récupération des pays :', error);
-            // Afficher un message d'erreur à l'utilisateur
-            this.gameStarting = false; // Réinitialiser l'état de démarrage du jeu en cas d'erreur
+            this.gameStarting = false;
           });
     },
     nextQuestion() {
-      const randomIndex = Math.floor(Math.random() * this.countries.length);
-      const country = this.countries[randomIndex];
-      this.countryName = country.name.common;
-      this.capital = country.capital[0] || 'N/A';
-      this.flagUrl = country.flags.svg || 'N/A';
-      this.mapLink = country.maps.googleMaps || ''; // Lien vers Google Maps
-      this.userGuess = '';
-      this.feedback = '';
+      if (this.questionNumber < this.totalQuestions) {
+        const randomIndex = Math.floor(Math.random() * this.countries.length);
+        const country = this.countries[randomIndex];
+        this.countryName = country.name.common;
+        this.capital = country.capital[0] || 'N/A';
+        this.flagUrl = country.flags.svg || 'N/A';
+        this.mapLink = country.maps.googleMaps || '';
+        this.userGuess = '';
+        this.feedback = '';
+        this.showCorrectAnswer = false;
+        this.showNextQuestionButton = false;
+        this.isAnswered = false;
+        this.questionNumber++; // Incrémenter le compteur de questions
+      } else {
+        console.log('Fin de la partie');
+      }
     },
     checkAnswer() {
       const userGuessTrimmed = this.userGuess.trim().toLowerCase();
@@ -68,14 +83,26 @@ export default {
       const commonLetters = this.getCommonLetters(userGuessTrimmed, capitalTrimmed);
 
       if (userGuessTrimmed === capitalTrimmed) {
-        this.feedback = 'Correct!'; // Réponse parfaite
+        this.feedback = 'Correct!';
         this.score += 2;
+        this.showCorrectAnswer = false;
+        this.showNextQuestionButton = true;
       } else if (commonLetters.length / capitalTrimmed.length >= 0.7) {
-        this.feedback = 'Presque correct!'; // 70 % ou plus de lettres en commun
+        this.feedback = `Presque correct! La capitale est ${this.capital}.`;
         this.score += 1;
+        this.showCorrectAnswer = true;
+
+          this.showCorrectAnswer = false;
+          this.showNextQuestionButton = true;
+
       } else {
-        this.feedback = `Incorrect!  La capitale est ${this.capital}.`;
+        this.feedback = `Incorrect! La capitale est ${this.capital}.`;
+        this.showNextQuestionButton = true;
       }
+      this.isAnswered = true; // Mettre à jour l'état de la réponse validée
+    },
+    skipQuestion() {
+      this.nextQuestion();
     },
     getCommonLetters(str1, str2) {
       const commonLetters = [];
@@ -85,6 +112,11 @@ export default {
         }
       }
       return commonLetters;
+    },
+    restartGame() {
+      this.questionNumber = 0; // Réinitialise le compteur de questions à 0
+      this.score = 0; // Réinitialise le score à 0
+      this.nextQuestion(); // Commence le jeu avec la première question
     }
   }
 }
@@ -102,11 +134,6 @@ export default {
   flex-direction: column;
   justify-content: center;
   align-items: center;
-}
-
-#quiz-page h2 {
-  font-size: 24px;
-  margin-bottom: 20px;
 }
 
 #quiz-page img {
