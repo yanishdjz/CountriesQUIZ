@@ -33,6 +33,7 @@ export default {
       question: "Quelle est la capitale de ce pays ?"
     }
   },
+
   methods: {
     startGame() {
       this.gameStarted = true;
