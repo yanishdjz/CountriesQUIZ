@@ -49,30 +49,44 @@ export default {
       fetch('https://restcountries.com/v3.1/all')
           .then(response => response.json())
           .then(data => {
-            this.countries = data;
-            this.nextQuestion();
-            this.gameStarted = true;
+            // Check if data is valid and not empty
+            if (data && Array.isArray(data) && data.length > 0) {
+              this.countries = data;
+              this.nextQuestion();
+              this.gameStarted = true;
+            } else {
+              console.error('Données des pays invalides ou vides');
+              this.gameStarted = false;
+            }
             this.gameStarting = false;
           })
           .catch(error => {
             console.error('Une erreur est survenue lors de la récupération des pays :', error);
+            this.gameStarted = false;
             this.gameStarting = false;
           });
     },
     nextQuestion() {
-      if (this.questionNumber < this.totalQuestions) {
+      if (this.questionNumber < this.totalQuestions && this.countries.length > 0) {
         const randomIndex = Math.floor(Math.random() * this.countries.length);
         const country = this.countries[randomIndex];
-        this.countryName = country.name.common;
-        this.capital = country.capital[0] || 'N/A';
-        this.flagUrl = country.flags.svg || 'N/A';
-        this.mapLink = country.maps.googleMaps || '';
-        this.userGuess = '';
-        this.feedback = '';
-        this.showCorrectAnswer = false;
-        this.showNextQuestionButton = false;
-        this.isAnswered = false;
-        this.questionNumber++; // Incrémenter le compteur de questions
+        
+        // Check if country exists and has required properties
+        if (country && country.name && country.name.common) {
+          this.countryName = country.name.common;
+          this.capital = (country.capital && country.capital[0]) || 'N/A';
+          this.flagUrl = (country.flags && country.flags.svg) || 'N/A';
+          this.mapLink = (country.maps && country.maps.googleMaps) || '';
+          this.userGuess = '';
+          this.feedback = '';
+          this.showCorrectAnswer = false;
+          this.showNextQuestionButton = false;
+          this.isAnswered = false;
+          this.questionNumber++; // Incrémenter le compteur de questions
+        } else {
+          // If country data is invalid, try again with another country
+          this.nextQuestion();
+        }
       } else {
         console.log('Fin de la partie');
       }
